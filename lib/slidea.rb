@@ -8,7 +8,7 @@ require_relative "slidea/deck"
 require_relative "slidea/llm_client"
 require_relative "slidea/markdown_renderer"
 require_relative "slidea/version"
- 
+
 module Slidea
   class Error < StandardError; end
   # Your code goes here...

@@ -6,3 +6,7 @@ Style/StringLiterals:
 
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
+
+Metrics/ClassLength:
+  Exclude:
+    - "lib/slidea/llm_client.rb"

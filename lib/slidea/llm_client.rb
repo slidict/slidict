@@ -71,7 +71,11 @@ module Slidea
     end
 
     def perform_request(uri, request)
-      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https") do |http|
+      Net::HTTP.start(uri.host, uri.port,
+                      use_ssl: uri.scheme == "https",
+                      open_timeout: 5,
+                      read_timeout: 30,
+                      write_timeout: 30) do |http|
         http.request(request)
       end
     rescue StandardError => e
@@ -111,11 +115,30 @@ module Slidea
     # answer instead of returning it verbatim, so the array is extracted from
     # within the raw content rather than parsed as-is.
     def extract_json_array(content)
-      start = content.index("[")
-      finish = content.rindex("]")
-      raise Error, "no JSON array found in model response" if start.nil? || finish.nil? || finish < start
+      content.enum_for(:scan, /\[/).each do
+        start = Regexp.last_match.begin(0)
+        candidate = json_array_from(content, start)
+        return candidate if candidate
+      end
 
-      content[start..finish]
+      raise Error, "no JSON array found in model response"
+    end
+
+    def json_array_from(content, start)
+      finish = start
+      while (finish = content.index("]", finish))
+        candidate = content[start..finish]
+        return candidate if parses_to_array?(candidate)
+
+        finish += 1
+      end
+      nil
+    end
+
+    def parses_to_array?(candidate)
+      JSON.parse(candidate).is_a?(Array)
+    rescue JSON::ParserError
+      false
     end
   end
 end
