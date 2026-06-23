@@ -1,6 +1,6 @@
 # Slidict
 
-Generate presentation-ready slides from a simple conversation.
+Generate presentation source files from a simple conversation.
 
 Slidict is a CLI tool that helps you turn rough ideas into presentations through AI-guided conversations.
 
@@ -9,7 +9,7 @@ Unlike traditional slide generators, Slidict focuses on communication before sli
 ## Features
 
 - Interactive CLI conversation
-- Generate Markdown slides for Slidev, Marp, Asciidoctor Reveal.js, and other OSS presentation frameworks
+- Generate slides for Slidev, Marp, Asciidoctor Reveal.js, and other OSS presentation frameworks
 - Local-first MVP implemented in Ruby
 - OpenAI Compatible API support, so you can point Slidict at OpenAI, Ollama, LM Studio, vLLM, or any other server implementing the same `/chat/completions` endpoint
 
@@ -25,10 +25,10 @@ Run the executable directly from this repository:
 bin/slidict
 ```
 
-Slidict asks a few questions and writes `slides.md`:
+Slidict asks a few questions and generates presentation source files. For example, this creates a Marp Markdown deck:
 
 ```bash
-$ bin/slidict
+$ bin/slidict --framework marp --output slides.md
 
 What would you like to talk about?
 > PDF Difference Monitoring Service
@@ -49,14 +49,18 @@ bin/slidict \
   --duration "5 minutes" \
   --audience "Engineering managers" \
   --goal "Approve an MVP pilot" \
-  --framework slidev \
-  --output slides.md
+  --framework asciidoctor-revealjs \
+  --output slides.adoc
 ```
 
-Output:
+## Output files
+
+Choose the framework and output path that match the presentation tool you want to use. If you omit `--output`, Slidict chooses a framework-specific default:
 
 ```text
-slides.md
+Slidev                  -> slides.md
+Marp                    -> slides.md
+Asciidoctor Reveal.js   -> slides.adoc
 ```
 
 ## Configuration

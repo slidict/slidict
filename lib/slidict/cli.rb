@@ -3,6 +3,11 @@
 module Slidict
   class CLI
     DEFAULT_OUTPUT = "slides.md"
+    DEFAULT_OUTPUT_BY_FRAMEWORK = {
+      "slidev" => "slides.md",
+      "marp" => "slides.md",
+      "asciidoctor-revealjs" => "slides.adoc"
+    }.freeze
 
     def initialize(input: $stdin, output: $stdout, renderer: MarkdownRenderer.new)
       @input = input
@@ -53,7 +58,7 @@ module Slidict
     private
 
     def parse(argv)
-      options = { output: DEFAULT_OUTPUT, framework: "slidev" }
+      options = { framework: "slidev" }
       args = argv.dup
 
       until args.empty?
@@ -85,6 +90,7 @@ module Slidict
         end
       end
 
+      options[:output] ||= default_output_for(options[:framework])
       options
     end
 
@@ -130,7 +136,7 @@ module Slidict
       @output.puts <<~HELP
         Usage: slidict [options]
 
-        Generate presentation-ready Markdown slides from a short conversation.
+        Generate presentation source files from a short conversation.
 
         Options:
             --topic TEXT       Presentation topic
@@ -143,10 +149,14 @@ module Slidict
             --llm-api-key KEY  API key for the LLM endpoint (env: SLIDICT_LLM_API_KEY)
             --llm-model NAME   Model name to request (env: SLIDICT_LLM_MODEL, default: gpt-4o-mini)
             --no-llm           Skip the LLM call and use the built-in slide template
-        -o, --output PATH      Output file (default: slides.md)
+        -o, --output PATH      Output file (default depends on --framework)
         -h, --help             Show this help
       HELP
       0
+    end
+
+    def default_output_for(framework)
+      DEFAULT_OUTPUT_BY_FRAMEWORK.fetch(framework.to_s.downcase, DEFAULT_OUTPUT)
     end
   end
 end
