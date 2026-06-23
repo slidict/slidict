@@ -40,6 +40,24 @@ RSpec.describe Slidict::MarkdownRenderer do
       expect(markdown).to include("marp: true\ntheme: default")
     end
 
+    it "renders Asciidoctor Reveal.js as AsciiDoc" do
+      asciidoc_deck = Slidict::Deck.new(
+        topic: "Observability",
+        duration: "x",
+        audience: "SREs",
+        goal: "adopt the checklist",
+        framework: "asciidoctor-revealjs"
+      )
+
+      asciidoc = described_class.new.render(asciidoc_deck)
+
+      expect(asciidoc).to start_with("= Observability\n:revealjs_theme: white\n:slidict_generated:")
+      expect(asciidoc).to include("== Observability")
+      expect(asciidoc).to include("* For SREs")
+      expect(asciidoc).not_to include("---")
+      expect(asciidoc).not_to include("# Observability")
+    end
+
     it "falls back to the slidev frontmatter for unknown frameworks" do
       unknown_deck = Slidict::Deck.new(topic: "x", duration: "x", audience: "x", goal: "x", framework: "keynote")
 

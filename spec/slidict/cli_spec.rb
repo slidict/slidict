@@ -38,6 +38,23 @@ RSpec.describe Slidict::CLI do
       end
     end
 
+    it "uses a framework-specific default output path" do
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) do
+          cli.run([
+                    "--topic", "Observability",
+                    "--duration", "10 minutes",
+                    "--audience", "SREs",
+                    "--goal", "adopt the checklist",
+                    "--framework", "asciidoctor-revealjs"
+                  ])
+
+          expect(File.exist?("slides.adoc")).to be(true)
+          expect(File.read("slides.adoc")).to include("= Observability")
+        end
+      end
+    end
+
     it "prompts for any answer that was not passed as an option" do
       input.string = "Observability\n10 minutes\nSREs\nadopt the checklist\n"
       Dir.mktmpdir do |dir|
