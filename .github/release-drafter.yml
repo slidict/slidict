@@ -19,5 +19,10 @@ categories:
   - title: '🧰 Maintenance'
     labels:
       - 'chore'
+      - 'ci'
+      - 'docs'
+      - 'build'
+      - 'perf'
+      - 'test'
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 no-changes-template: '- No changes'

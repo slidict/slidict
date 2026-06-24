@@ -31,19 +31,7 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Check if version tag exists
-        id: check_tag
-        run: |
-          if gh release view "$VERSION_TAG" --json tagName > /dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Draft release with release-drafter
-        if: steps.check_tag.outputs.exists == 'false'
+      - name: Release with release-drafter
         uses: release-drafter/release-drafter@v5
         with:
           config-name: release-drafter.yml
