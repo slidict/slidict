@@ -29,23 +29,13 @@ jobs:
         version=$(echo "${GITHUB_REF#refs/tags/}")
         echo "version=$version" >> $GITHUB_ENV
 
-    - name: Generate release notes
-      id: release_drafter
-      uses: release-drafter/release-drafter@v5
-      with:
-        config-name: release-drafter.yml
-        tag: ${{ env.version }}
-        version: ${{ env.version }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Update GitHub Release
       uses: ncipollo/release-action@v1
       with:
         allowUpdates: true
+        omitBodyDuringUpdate: true
         tag: ${{ env.version }}
         name: ${{ env.version }}
-        body: ${{ steps.release_drafter.outputs.body }}
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Publish to GPR
