@@ -14,7 +14,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      pull-requests: read
 
     steps:
       - uses: actions/checkout@v3
@@ -25,32 +24,6 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.4.3
-
-      - name: Validate release conditions
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_SHA: ${{ github.sha }}
-        run: |
-          version=$(ruby -e 'content = File.read("lib/slidict/version.rb"); match = content.match(/VERSION\s*=\s*"(\d+\.\d+\.\d+)"/); abort("VERSION not found") unless match; print match[1]')
-          echo "Detected version: v${version}"
-
-          pr_number=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" --jq '.[] | select(.merged_at != null) | .number' | head -n 1)
-          if [ -z "$pr_number" ]; then
-            echo "No merged PR found for commit ${HEAD_SHA}; skipping gem publish."
-            exit 1
-          fi
-
-          if ! gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/files" --paginate --jq '.[].filename' | grep -qx 'lib/slidict/version.rb'; then
-            echo "Merged PR #${pr_number} does not include lib/slidict/version.rb."
-            exit 1
-          fi
-
-          latest_tag=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')
-          latest_version="${latest_tag#v}"
-          if [ "$latest_version" != "$version" ]; then
-            echo "Latest published release note (${latest_tag}) does not match lib/slidict/version.rb (v${version})."
-            exit 1
-          fi
 
       - name: Publish to GPR
         run: |
