@@ -9,15 +9,20 @@ module Slidict
       "asciidoctor-revealjs" => "slides.adoc"
     }.freeze
 
-    def initialize(input: $stdin, output: $stdout, renderer: MarkdownRenderer.new)
+    def initialize(input: $stdin, output: $stdout, renderer: MarkdownRenderer.new, auth_client: nil,
+                   credentials: nil, sleeper: Kernel)
       @input = input
       @output = output
       @renderer = renderer
+      @auth_client = auth_client
+      @credentials = credentials
+      @sleeper = sleeper
     end
 
     def run(argv = [])
       options = parse(argv)
       return print_help if options[:help]
+      return login if options[:command] == "login"
 
       config = build_config(options)
       client = llm_client_for(config)
@@ -60,6 +65,14 @@ module Slidict
     def parse(argv)
       options = { framework: "slidev" }
       args = argv.dup
+
+      if args.first == "login"
+        args.shift
+        raise ArgumentError, "login does not accept options" unless args.empty?
+
+        options[:command] = "login"
+        return options
+      end
 
       until args.empty?
         case (arg = args.shift)
@@ -117,6 +130,41 @@ module Slidict
       false
     end
 
+    def login
+      client = @auth_client || AuthClient.new
+      credentials = @credentials || Credentials.new
+
+      device = client.request_device_code
+      @output.puts "1. Open #{device[:verification_uri]} in your browser"
+      @output.puts "2. Enter code: #{device[:user_code]}"
+      @output.puts "3. Log in with GitHub"
+      @output.puts "Waiting for GitHub authentication..."
+
+      deadline = Time.now + device[:expires_in]
+      loop do
+        token = client.poll_token(device_code: device[:device_code])
+        path = credentials.write_cli_token!(
+          access_token: token.fetch("access_token"),
+          token_type: token.fetch("token_type", "Bearer"),
+          provider: token.fetch("provider", "github")
+        )
+        @output.puts "4. Saved CLI access token to #{path}"
+        return 0
+      rescue AuthClient::Pending
+        return login_expired if Time.now >= deadline
+
+        @sleeper.sleep(device[:interval])
+      end
+    rescue AuthClient::Error, KeyError => e
+      @output.puts "Error: GitHub login failed (#{e.message})"
+      1
+    end
+
+    def login_expired
+      @output.puts "Error: GitHub login timed out. Run `slidict login` and try again."
+      1
+    end
+
     def fetch_value!(args, option)
       value = args.shift
       raise ArgumentError, "#{option} requires a value" if value.nil? || value.start_with?("-")
@@ -135,8 +183,12 @@ module Slidict
     def print_help
       @output.puts <<~HELP
         Usage: slidict [options]
+        Usage: slidict login
 
         Generate presentation source files from a short conversation.
+
+        Commands:
+            login            Authenticate the CLI with GitHub and save a CLI access token
 
         Options:
             --topic TEXT       Presentation topic
