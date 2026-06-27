@@ -203,6 +203,16 @@ RSpec.describe Slidict::CLI do
       end
     end
 
+    it "delegates the slides command to SlidesCommand" do
+      slides_command = instance_double(Slidict::SlidesCommand, run: 0)
+      cli = described_class.new(input: input, output: output, slides_command: slides_command)
+
+      status = cli.run(["slides", "list", "--page", "2"])
+
+      expect(status).to eq(0)
+      expect(slides_command).to have_received(:run).with(["list", "--page", "2"])
+    end
+
     it "skips the LLM call when --no-llm is given even with a base URL" do
       expect(Slidict::LLMClient).not_to receive(:new)
 

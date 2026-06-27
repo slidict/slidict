@@ -23,5 +23,17 @@ module Slidict
       File.chmod(0o600, @path)
       @path
     end
+
+    # Returns { access_token:, token_type: } or nil if no CLI access token is saved.
+    def read_cli_token
+      return nil unless File.exist?(@path)
+
+      data = JSON.parse(File.read(@path))
+      return nil unless data["kind"] == "cli_access_token" && data["access_token"]
+
+      { access_token: data["access_token"], token_type: data.fetch("token_type", "Bearer") }
+    rescue JSON::ParserError
+      nil
+    end
   end
 end

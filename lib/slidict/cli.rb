@@ -10,19 +10,21 @@ module Slidict
     }.freeze
 
     def initialize(input: $stdin, output: $stdout, renderer: MarkdownRenderer.new, auth_client: nil,
-                   credentials: nil, sleeper: Kernel)
+                   credentials: nil, sleeper: Kernel, slides_command: nil)
       @input = input
       @output = output
       @renderer = renderer
       @auth_client = auth_client
       @credentials = credentials
       @sleeper = sleeper
+      @slides_command = slides_command
     end
 
     def run(argv = [])
       options = parse(argv)
       return print_help if options[:help]
       return auth if options[:command] == "auth"
+      return slides(options[:args]) if options[:command] == "slides"
 
       config = build_config(options)
       client = llm_client_for(config)
@@ -71,6 +73,13 @@ module Slidict
         raise ArgumentError, "auth does not accept options" unless args.empty?
 
         options[:command] = "auth"
+        return options
+      end
+
+      if args.first == "slides"
+        args.shift
+        options[:command] = "slides"
+        options[:args] = args
         return options
       end
 
@@ -160,6 +169,11 @@ module Slidict
       1
     end
 
+    def slides(args)
+      command = @slides_command || SlidesCommand.new(output: @output, credentials: @credentials)
+      command.run(args)
+    end
+
     def login_expired
       @output.puts "Error: GitHub auth timed out. Run `slidict auth` and try again."
       1
@@ -184,11 +198,13 @@ module Slidict
       @output.puts <<~HELP
         Usage: slidict [options]
         Usage: slidict auth
+        Usage: slidict slides <list|show|create|edit> [options]
 
         Generate presentation source files from a short conversation.
 
         Commands:
           auth             Authenticate the CLI with GitHub and save a CLI access token
+          slides           Manage your slides on slidict.io (run `slidict slides -h` for details)
 
         Options:
             --topic TEXT       Presentation topic
