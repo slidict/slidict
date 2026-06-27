@@ -67,6 +67,53 @@ RSpec.describe Slidict::CLI do
       end
     end
 
+    it "runs the GitHub CLI auth device flow and stores a CLI access token" do
+      client = Class.new do
+        def request_device_code
+          {
+            device_code: "device-123",
+            user_code: "ABCD-EFGH",
+            verification_uri: "https://slidict.io/cli/activate",
+            interval: 1,
+            expires_in: 600
+          }
+        end
+
+        def poll_token(device_code:)
+          if device_code == "device-123" && !@pending_seen
+            @pending_seen = true
+            raise Slidict::AuthClient::Pending
+          end
+
+          { "access_token" => "cli-token", "token_type" => "Bearer", "provider" => "github" }
+        end
+      end.new
+      credentials = instance_double(Slidict::Credentials)
+      sleeper = double("sleeper", sleep: nil)
+      cli = described_class.new(
+        input: input, output: output, auth_client: client, credentials: credentials, sleeper: sleeper
+      )
+
+      allow(credentials).to receive(:write_cli_token!)
+        .with(access_token: "cli-token", token_type: "Bearer", provider: "github")
+        .and_return("/tmp/slidict/credentials.json")
+
+      status = cli.run(["auth"])
+
+      expect(status).to eq(0)
+      expect(output.string).to include("Open https://slidict.io/cli/activate in your browser")
+      expect(output.string).to include("Enter code: ABCD-EFGH")
+      expect(output.string).to include("Log in with GitHub")
+      expect(output.string).to include("Saved CLI access token to /tmp/slidict/credentials.json")
+    end
+
+    it "prints an error when auth options are passed" do
+      status = cli.run(["auth", "--topic", "x"])
+
+      expect(status).to eq(1)
+      expect(output.string).to include("Error: auth does not accept options")
+    end
+
     it "prints help and returns 0 when -h is given" do
       status = cli.run(["-h"])
 
@@ -154,6 +201,16 @@ RSpec.describe Slidict::CLI do
         expect(output.string).not_to include("What would you like to talk about?")
         expect(File.exist?(path)).to be(false)
       end
+    end
+
+    it "delegates the slides command to SlidesCommand" do
+      slides_command = instance_double(Slidict::SlidesCommand, run: 0)
+      cli = described_class.new(input: input, output: output, slides_command: slides_command)
+
+      status = cli.run(["slides", "list", "--page", "2"])
+
+      expect(status).to eq(0)
+      expect(slides_command).to have_received(:run).with(["list", "--page", "2"])
     end
 
     it "skips the LLM call when --no-llm is given even with a base URL" do
