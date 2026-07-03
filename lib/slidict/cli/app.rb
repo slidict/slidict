@@ -8,6 +8,16 @@ module Slidict
     class App
       include Options
 
+      # Keyed by the same symbols as the parsed CLI options (options[:topic],
+      # etc.), so a missing answer's question text can be looked up directly
+      # by `questions_for`.
+      QUESTIONS = {
+        topic: "What would you like to talk about?",
+        duration: "How long is the presentation?",
+        audience: "Who is the audience?",
+        goal: "What should the audience remember or do?"
+      }.freeze
+
       options input: -> { $stdin },
               output: -> { $stdout },
               renderer: -> { Output::Renderer.new },
@@ -24,6 +34,8 @@ module Slidict
       flag "--goal",         arg: "TEXT",  desc: "Desired audience takeaway or action"
       flag "--framework",    arg: "NAME",  desc: -> { "#{Output::Format.names.join(", ")} (default: slidev)" }
       flag "--method",       arg: "ID",    desc: "Presentation method, for example scqa, prep, or pyramid"
+      flag "--language",     arg: "LANG",  desc: "Generate slide titles and bullets in the given language\n" \
+                                                  "(e.g. Japanese); only affects LLM-generated slides"
       flag "--filename",     arg: "NAME",  desc: "File name under public/ (default: next sequential file)"
       flag "--llm-base-url", arg: "URL",   desc: "OpenAI Compatible API base URL (env: SLIDICT_LLM_BASE_URL).\n" \
                                                   "When omitted, the built-in slide template is used instead."
@@ -61,18 +73,19 @@ module Slidict
         client = llm_client_for(config)
         return FAILURE if client && !verify_connection(client)
 
+        questions = questions_for(client, options)
         deck = Deck.new(
-          topic: ask("What would you like to talk about?", options[:topic]),
-          duration: ask("How long is the presentation?", options[:duration]),
-          audience: ask("Who is the audience?", options[:audience]),
-          goal: ask("What should the audience remember or do?", options[:goal]),
+          topic: ask(questions[:topic], options[:topic]),
+          duration: ask(questions[:duration], options[:duration]),
+          audience: ask(questions[:audience], options[:audience]),
+          goal: ask(questions[:goal], options[:goal]),
           framework: options[:framework],
           presentation_method: options[:presentation_method]
         )
 
         if client
           begin
-            slides = client.generate_slides(deck)
+            slides = client.generate_slides(deck, language: options[:language])
           rescue Llm::Client::Error => e
             @output.puts "Error: LLM request failed (#{e.message})"
             return FAILURE
@@ -317,6 +330,25 @@ module Slidict
         @output.puts question
         @output.print "> "
         @input.gets&.chomp.to_s
+      end
+
+      # Translates only the questions that will actually be asked (those
+      # whose option wasn't already given on the command line). Falls back to
+      # the English questions if there's no client, no --language, nothing
+      # left to ask, or a translation call fails -- this is a nicety, not
+      # something worth aborting slide generation over.
+      def questions_for(client, options)
+        return QUESTIONS unless client && options[:language]
+
+        missing = QUESTIONS.select { |key, _| options[key].to_s.strip.empty? }
+        return QUESTIONS if missing.empty?
+
+        translated = missing.transform_values { |text| client.translate_text(text, options[:language]) }
+        QUESTIONS.merge(translated)
+      rescue Llm::Client::Error => e
+        @output.puts "Warning: could not translate questions into #{options[:language]} " \
+                     "(#{e.message}); asking in English."
+        QUESTIONS
       end
 
       usage do

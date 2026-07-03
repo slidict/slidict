@@ -258,6 +258,106 @@ RSpec.describe Slidict::Cli::App do
       end
     end
 
+    it "passes --language through to the LLM client's generate_slides call" do
+      generated = [Slidict::Slide.new(title: "Generated title", bullets: %w[a b])]
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)
+      expect_any_instance_of(Slidict::Llm::Client).to receive(:generate_slides)
+        .with(anything, language: "Japanese").and_return(generated)
+
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "slides.md")
+
+        cli.run([
+                  "--topic", "Observability", "--duration", "x", "--audience", "x", "--goal", "x",
+                  "--llm-base-url", "http://localhost:11434/v1", "--llm-api-key", "ollama",
+                  "--llm-model", "llama3", "--language", "Japanese", "--output", path
+                ])
+      end
+    end
+
+    it "asks translated questions when --language is given and an LLM is configured" do
+      generated = [Slidict::Slide.new(title: "Generated title", bullets: %w[a b])]
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:generate_slides).and_return(generated)
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:translate_text) do |_client, text, _language|
+        { "What would you like to talk about?" => "トピックは何ですか?" }.fetch(text, text)
+      end
+
+      input.string = "Observability\n10 minutes\nSREs\nadopt the checklist\n"
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "slides.md")
+
+        cli.run([
+                  "--llm-base-url", "http://localhost:11434/v1", "--llm-api-key", "ollama",
+                  "--llm-model", "llama3", "--language", "Japanese", "--output", path
+                ])
+
+        expect(output.string).to include("トピックは何ですか?")
+        expect(output.string).not_to include("What would you like to talk about?")
+      end
+    end
+
+    it "only translates the questions that still need answering" do
+      generated = [Slidict::Slide.new(title: "Generated title", bullets: %w[a b])]
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:generate_slides).and_return(generated)
+      expect_any_instance_of(Slidict::Llm::Client).to receive(:translate_text)
+        .with(Slidict::Cli::App::QUESTIONS[:goal], "Japanese")
+        .and_return("何を持ち帰ってほしいですか?")
+
+      input.string = "adopt the checklist\n"
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "slides.md")
+
+        cli.run([
+                  "--topic", "Observability", "--duration", "x", "--audience", "x",
+                  "--llm-base-url", "http://localhost:11434/v1", "--llm-api-key", "ollama",
+                  "--llm-model", "llama3", "--language", "Japanese", "--output", path
+                ])
+
+        expect(output.string).to include("何を持ち帰ってほしいですか?")
+      end
+    end
+
+    it "falls back to English questions when translation fails" do
+      generated = [Slidict::Slide.new(title: "Generated title", bullets: %w[a b])]
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:generate_slides).and_return(generated)
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:translate_text)
+        .and_raise(Slidict::Llm::Client::Error, "boom")
+
+      input.string = "Observability\n10 minutes\nSREs\nadopt the checklist\n"
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "slides.md")
+
+        status = cli.run([
+                           "--llm-base-url", "http://localhost:11434/v1", "--llm-api-key", "ollama",
+                           "--llm-model", "llama3", "--language", "Japanese", "--output", path
+                         ])
+
+        expect(status).to eq(0)
+        expect(output.string).to include("Warning: could not translate questions into Japanese (boom)")
+        expect(output.string).to include("What would you like to talk about?")
+      end
+    end
+
+    it "does not translate questions when --language is not given" do
+      generated = [Slidict::Slide.new(title: "Generated title", bullets: %w[a b])]
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:generate_slides).and_return(generated)
+      expect_any_instance_of(Slidict::Llm::Client).not_to receive(:translate_text)
+
+      input.string = "Observability\n10 minutes\nSREs\nadopt the checklist\n"
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "slides.md")
+
+        cli.run([
+                  "--llm-base-url", "http://localhost:11434/v1", "--llm-api-key", "ollama",
+                  "--llm-model", "llama3", "--output", path
+                ])
+      end
+    end
+
     it "prints an error and exits without writing a file when the LLM request fails" do
       allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)
       allow_any_instance_of(Slidict::Llm::Client).to receive(:generate_slides)

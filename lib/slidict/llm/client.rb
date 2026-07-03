@@ -35,8 +35,8 @@ module Slidict
         raise Error, "could not parse models response: #{e.message}"
       end
 
-      def generate_slides(deck)
-        content = chat_completion(prompt_for(deck))
+      def generate_slides(deck, language: nil)
+        content = chat_completion(prompt_for(deck, language: language))
         slides_from(content)
       end
 
@@ -48,6 +48,16 @@ module Slidict
         findings_from(content)
       end
 
+      # Translates a single line of text into language. Unlike
+      # generate_slides/lint_slides, the response is a plain string rather
+      # than parsed JSON: asking a (often small, local) model to translate
+      # one line is a task it can follow reliably, whereas asking it to also
+      # return a JSON array of a specific length is exactly the kind of
+      # structured-output instruction weaker models tend to get wrong.
+      def translate_text(text, language)
+        strip_quotes(chat_completion(translate_prompt_for(text, language)).strip)
+      end
+
       private
 
       def get_models_response
@@ -57,7 +67,7 @@ module Slidict
         perform_request(uri, request)
       end
 
-      def prompt_for(deck)
+      def prompt_for(deck, language: nil)
         <<~PROMPT
           You are an assistant that designs presentation slide outlines.
           Topic: #{deck.topic}
@@ -69,9 +79,15 @@ module Slidict
           Return one slide for each required slide role when a presentation method is
           provided; otherwise return exactly 5 slides. Each item must be an object with
           a "title" string and a "bullets" array of 2-4 short strings.
-          Respond with the JSON array only: no commentary, no markdown code fences,
-          and no reasoning or thinking content before or after it.
+          #{language_instruction_for(language)}Respond with the JSON array only: no commentary, no markdown code
+          fences, and no reasoning or thinking content before or after it.
         PROMPT
+      end
+
+      def language_instruction_for(language)
+        return "" unless language
+
+        "Write the \"title\" and \"bullets\" text in #{language}.\n"
       end
 
       def method_prompt_for(deck)
@@ -130,6 +146,23 @@ module Slidict
         numbered = slide_texts.each_with_index.map { |text, i| "--- Slide #{i + 1} ---\n#{text}" }.join("\n\n")
         prompt = format(LINT_PROMPT_TEMPLATE, numbered: numbered)
         translate ? "#{prompt}\nTranslate only the \"message\" field of each finding into #{translate}. Keep \"slide\" as an integer and \"severity\" as exactly \"warning\" or \"info\" — do not translate those values." : prompt
+      end
+
+      def translate_prompt_for(text, language)
+        <<~PROMPT
+          Translate the following text into #{language}. Respond with only the
+          translation: no commentary, no surrounding quotation marks, no
+          markdown formatting, and no reasoning or thinking content before or
+          after it.
+
+          #{text}
+        PROMPT
+      end
+
+      # Small/local models often ignore the "no quotation marks" instruction
+      # above and wrap the translation anyway.
+      def strip_quotes(text)
+        text.sub(/\A["'“”‘’「」]+/, "").sub(/["'“”‘’「」]+\z/, "")
       end
 
       def findings_from(content)

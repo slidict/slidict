@@ -180,6 +180,13 @@ calls an LLM. Once a `llm-base-url` is set, Slidict always calls that endpoint; 
 request fails, Slidict reports the error and exits without writing a file (no fallback).
 You can force the template even when a base URL is configured with `--no-llm`.
 
+Use `--language LANG` (e.g. `--language Japanese`) to have the LLM write the generated
+slide titles and bullets in a language other than English. When an `llm-base-url` is
+also configured, Slidict asks the LLM to translate any interactive questions it still
+needs to ask (topic, duration, audience, goal) into that language too, so you're not
+answering Japanese-bound slides in English prompts. This only affects LLM-generated
+slides and questions; the built-in template stays in English.
+
 Examples:
 
 ```bash
