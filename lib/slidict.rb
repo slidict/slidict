@@ -2,6 +2,7 @@
 
 require "time"
 
+require_relative "slidict/cli/options"
 require_relative "slidict/cli/app"
 require_relative "slidict/cli/lint"
 require_relative "slidict/cli/serve"

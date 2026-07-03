@@ -6,18 +6,44 @@ require "pathname"
 module Slidict
   module Cli
     class App
-      def initialize(input: $stdin, output: $stdout, renderer: Output::Renderer.new, auth_client: nil,
-                     credentials: nil, sleeper: Kernel, slides_command: nil, server: nil, lint_command: nil)
-        @input = input
-        @output = output
-        @renderer = renderer
-        @auth_client = auth_client
-        @credentials = credentials
-        @sleeper = sleeper
-        @slides_command = slides_command
-        @server = server
-        @lint_command = lint_command
-      end
+      include Options
+
+      options input: -> { $stdin },
+              output: -> { $stdout },
+              renderer: -> { Output::Renderer.new },
+              auth_client: -> { nil },
+              credentials: -> { nil },
+              sleeper: -> { Kernel },
+              slides_command: -> { nil },
+              server: -> { nil },
+              lint_command: -> { nil }
+
+      flag "--topic",        arg: "TEXT",  desc: "Presentation topic"
+      flag "--duration",     arg: "TEXT",  desc: 'Presentation length, for example "5 minutes"'
+      flag "--audience",     arg: "TEXT",  desc: "Target audience"
+      flag "--goal",         arg: "TEXT",  desc: "Desired audience takeaway or action"
+      flag "--framework",    arg: "NAME",  desc: -> { "#{Output::Format.names.join(", ")} (default: slidev)" }
+      flag "--method",       arg: "ID",    desc: "Presentation method, for example scqa, prep, or pyramid"
+      flag "--filename",     arg: "NAME",  desc: "File name under public/ (default: next sequential file)"
+      flag "--llm-base-url", arg: "URL",   desc: "OpenAI Compatible API base URL (env: SLIDICT_LLM_BASE_URL).\n" \
+                                                  "When omitted, the built-in slide template is used instead."
+      flag "--llm-api-key",  arg: "KEY",   desc: "API key for the LLM endpoint (env: SLIDICT_LLM_API_KEY)"
+      # rubocop:disable Layout/HashAlignment -- source-only line wrap, desc stays a single displayed line
+      flag "--llm-model", arg: "NAME",
+           desc: "Model name to request (env: SLIDICT_LLM_MODEL); omit to list available models"
+      # rubocop:enable Layout/HashAlignment
+      flag "--no-llm",                     desc: "Skip the LLM call and use the built-in slide template"
+      flag "--publish",                    desc: "Publish the generated slides to slidict.io as a draft\n" \
+                                                  "(requires `slidict auth`; creates a new slide, or edits\n" \
+                                                  "an existing one when --slide-id is given)"
+      # rubocop:disable Layout/HashAlignment -- source-only line wrap, desc stays a single displayed line
+      flag "--slide-id", arg: "ID",
+           desc: "Edit this existing draft instead of creating a new one\n(implies --publish)"
+      # rubocop:enable Layout/HashAlignment
+      flag "--slide-title",  arg: "TEXT",  desc: "Title for the published slide (default: --topic)"
+      flag "--visibility",   arg: "VIS",   desc: "public, unlisted, or group_only (default: public)"
+      flag "-o", "--output", arg: "PATH",  desc: "Output file (overrides --filename and the public/ default)"
+      flag "-h", "--help",                 desc: "Show this help"
 
       def run(argv = [])
         options = parse(argv)
@@ -33,7 +59,7 @@ module Slidict
         return print_available_models(config) if config.llm_enabled? && config.model.nil?
 
         client = llm_client_for(config)
-        return 1 if client && !verify_connection(client)
+        return FAILURE if client && !verify_connection(client)
 
         deck = Deck.new(
           topic: ask("What would you like to talk about?", options[:topic]),
@@ -49,7 +75,7 @@ module Slidict
             slides = client.generate_slides(deck)
           rescue Llm::Client::Error => e
             @output.puts "Error: LLM request failed (#{e.message})"
-            return 1
+            return FAILURE
           end
           deck = Deck.new(
             topic: deck.topic, duration: deck.duration, audience: deck.audience, goal: deck.goal,
@@ -65,12 +91,12 @@ module Slidict
 
         return publish_to_slidict(deck, content, options) if options[:publish] || options[:slide_id]
 
-        0
+        SUCCESS
       rescue ArgumentError => e
         @output.puts "Error: #{e.message}"
         @output.puts
         print_help
-        1
+        FAILURE
       end
 
       private
@@ -125,46 +151,7 @@ module Slidict
           return options
         end
 
-        until args.empty?
-          case (arg = args.shift)
-          when "-h", "--help"
-            options[:help] = true
-          when "-o", "--output"
-            options[:output] = fetch_value!(args, arg)
-          when "--filename"
-            options[:filename] = fetch_value!(args, arg)
-          when "--topic"
-            options[:topic] = fetch_value!(args, arg)
-          when "--duration"
-            options[:duration] = fetch_value!(args, arg)
-          when "--audience"
-            options[:audience] = fetch_value!(args, arg)
-          when "--goal"
-            options[:goal] = fetch_value!(args, arg)
-          when "--framework"
-            options[:framework] = fetch_value!(args, arg)
-          when "--method"
-            options[:method] = fetch_value!(args, arg)
-          when "--llm-base-url"
-            options[:llm_base_url] = fetch_value!(args, arg)
-          when "--llm-api-key"
-            options[:llm_api_key] = fetch_value!(args, arg)
-          when "--llm-model"
-            options[:llm_model] = fetch_value!(args, arg)
-          when "--no-llm"
-            options[:no_llm] = true
-          when "--publish"
-            options[:publish] = true
-          when "--slide-id"
-            options[:slide_id] = fetch_value!(args, arg)
-          when "--slide-title"
-            options[:slide_title] = fetch_value!(args, arg)
-          when "--visibility"
-            options[:visibility] = fetch_value!(args, arg)
-          else
-            raise ArgumentError, "unknown option #{arg}"
-          end
-        end
+        parse_flags!(args, options)
 
         options[:output] ||= output_path_for(options[:framework], options[:filename])
         options[:presentation_method] = method_for(options[:method])
@@ -189,10 +176,10 @@ module Slidict
           @output.puts "Available models (specify one with --llm-model NAME or SLIDICT_LLM_MODEL=NAME):"
           models.each { |m| @output.puts "  #{m}" }
         end
-        0
+        SUCCESS
       rescue Llm::Client::Error => e
         @output.puts "Error: LLM request failed (#{e.message})"
-        1
+        FAILURE
       end
 
       def llm_client_for(config)
@@ -228,7 +215,7 @@ module Slidict
             provider: token.fetch("provider", "github")
           )
           @output.puts "4. Saved CLI access token to #{path}"
-          return 0
+          return SUCCESS
         rescue External::SlidictIo::Auth::Pending
           return login_expired if Time.now >= deadline
 
@@ -236,7 +223,7 @@ module Slidict
         end
       rescue External::SlidictIo::Auth::Error, KeyError => e
         @output.puts "Error: GitHub auth failed (#{e.message})"
-        1
+        FAILURE
       end
 
       def slides(args)
@@ -258,7 +245,7 @@ module Slidict
             id: method.id, name: method.name, category: method.category
           )
         end
-        0
+        SUCCESS
       end
 
       def show_method(args)
@@ -275,7 +262,7 @@ module Slidict
         method.slides.each_with_index { |slide, i| @output.puts "  #{i + 1}. #{slide.title}: #{slide.role}" }
         @output.puts "Review checklist:"
         method.review_checklist.each { |item| @output.puts "  - #{item}" }
-        0
+        SUCCESS
       end
 
       def method_for(id)
@@ -314,7 +301,7 @@ module Slidict
 
       def login_expired
         @output.puts "Error: GitHub auth timed out. Run `slidict auth` and try again."
-        1
+        FAILURE
       end
 
       def fetch_value!(args, option)
@@ -332,8 +319,8 @@ module Slidict
         @input.gets&.chomp.to_s
       end
 
-      def print_help
-        @output.puts <<~HELP
+      usage do
+        <<~USAGE
           Usage: slidict [new] [options]
           Usage: slidict auth
           Usage: slidict slides <list|show|create|edit> [options]
@@ -354,29 +341,8 @@ module Slidict
             show-method      Show details for one presentation method
 
           Options:
-              --topic TEXT       Presentation topic
-              --duration TEXT    Presentation length, for example "5 minutes"
-              --audience TEXT    Target audience
-              --goal TEXT        Desired audience takeaway or action
-              --framework NAME   #{Output::Format.names.join(", ")} (default: slidev)
-              --method ID        Presentation method, for example scqa, prep, or pyramid
-              --filename NAME    File name under public/ (default: next sequential file)
-              --llm-base-url URL OpenAI Compatible API base URL (env: SLIDICT_LLM_BASE_URL).
-                                 When omitted, the built-in slide template is used instead.
-              --llm-api-key KEY  API key for the LLM endpoint (env: SLIDICT_LLM_API_KEY)
-              --llm-model NAME   Model name to request (env: SLIDICT_LLM_MODEL); omit to list available models
-              --no-llm           Skip the LLM call and use the built-in slide template
-              --publish          Publish the generated slides to slidict.io as a draft
-                                 (requires `slidict auth`; creates a new slide, or edits
-                                 an existing one when --slide-id is given)
-              --slide-id ID      Edit this existing draft instead of creating a new one
-                                 (implies --publish)
-              --slide-title TEXT Title for the published slide (default: --topic)
-              --visibility VIS   public, unlisted, or group_only (default: public)
-          -o, --output PATH      Output file (overrides --filename and the public/ default)
-          -h, --help             Show this help
-        HELP
-        0
+          #{flags_help}
+        USAGE
       end
 
       def output_path_for(framework, filename)

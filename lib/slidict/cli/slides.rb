@@ -4,12 +4,29 @@ module Slidict
   module Cli
     # Implements the `slidict slides <list|show|create|edit>` subcommands.
     class Slides
-      def initialize(output:, credentials: nil, client: nil, reauthenticate: nil)
-        @output = output
-        @credentials = credentials || External::SlidictIo::Credentials.new
-        @client = client
-        @reauthenticate = reauthenticate
-      end
+      include Options
+
+      options output: Options::MISSING,
+              credentials: -> { External::SlidictIo::Credentials.new },
+              client: -> { nil },
+              reauthenticate: -> { nil }
+
+      # rubocop:disable Layout/HashAlignment -- source-only line wraps below, kept short rather than column-aligned
+      flag "--page", arg: "N",
+           coerce: ->(v) { Integer(v) }, desc: "Page number (20 slides per page)", group: :list
+      # rubocop:enable Layout/HashAlignment
+      flag "-h", "--help",              desc: "Show this help", group: :list
+
+      flag "--title",      arg: "TEXT", desc: "Slide title", group: :body_options
+      flag "--body",       arg: "TEXT", desc: "Slide body text", group: :body_options
+      # rubocop:disable Layout/HashAlignment -- source-only line wraps below, kept short rather than column-aligned
+      flag "--file",       arg: "PATH", desc: "Read the slide body from a file (instead of --body)",
+           group: :body_options
+      flag "--body-format", arg: "FORMAT", desc: "asciidoc or markdown (default: auto-detected from body)",
+           group: :body_options
+      # rubocop:enable Layout/HashAlignment
+      flag "--visibility", arg: "VIS",  desc: "public, unlisted, or group_only (default: public)", group: :body_options
+      flag "-h", "--help",              desc: "Show this help", group: :body_options
 
       def run(argv)
         options = parse(argv)
@@ -20,7 +37,7 @@ module Slidict
         @output.puts "Error: #{e.message}"
         @output.puts
         print_help
-        1
+        FAILURE
       end
 
       # Creates or edits a draft directly, bypassing argv parsing (and its
@@ -49,13 +66,7 @@ module Slidict
 
       def parse_list(args)
         options = { subcommand: :list }
-        until args.empty?
-          case (arg = args.shift)
-          when "--page" then options[:page] = Integer(fetch_value!(args, arg))
-          when "-h", "--help" then options[:help] = true
-          else raise ArgumentError, "unknown option #{arg}"
-          end
-        end
+        parse_flags!(args, options, :list)
         options
       end
 
@@ -83,17 +94,7 @@ module Slidict
       end
 
       def parse_body_options!(args, options)
-        until args.empty?
-          case (arg = args.shift)
-          when "--title" then options[:title] = fetch_value!(args, arg)
-          when "--body" then options[:body] = fetch_value!(args, arg)
-          when "--file" then options[:file] = fetch_value!(args, arg)
-          when "--body-format" then options[:body_format] = fetch_value!(args, arg)
-          when "--visibility" then options[:visibility] = fetch_value!(args, arg)
-          when "-h", "--help" then options[:help] = true
-          else raise ArgumentError, "unknown option #{arg}"
-          end
-        end
+        parse_flags!(args, options, :body_options)
         raise ArgumentError, "specify only one of --body or --file" if options[:body] && options[:file]
       end
 
@@ -111,17 +112,17 @@ module Slidict
       def list(options)
         with_reauth_retry do
           print_slide_list(client.list(page: options[:page]))
-          0
+          SUCCESS
         end
       end
 
       def show(options)
         with_reauth_retry do
           print_slide_detail(client.show(options[:id]))
-          0
+          SUCCESS
         rescue External::SlidictIo::Client::NotFound
           @output.puts "Error: slide not found"
-          1
+          FAILURE
         end
       end
 
@@ -147,13 +148,13 @@ module Slidict
           slide = yield
           @output.puts "#{verb} slide ##{slide["id"]} (draft)"
           print_slide_detail(slide)
-          0
+          SUCCESS
         rescue External::SlidictIo::Client::NotFound
           @output.puts "Error: slide not found"
-          1
+          FAILURE
         rescue External::SlidictIo::Client::NotEditable
           @output.puts "Error: this slide is already published. Edit it from the Web UI instead."
-          1
+          FAILURE
         rescue External::SlidictIo::Client::RateLimited
           print_rate_limited
         rescue External::SlidictIo::Client::Unprocessable => e
@@ -230,22 +231,22 @@ module Slidict
 
       def print_rate_limited
         @output.puts "Error: rate limited. Create/edit is limited to once per minute. Wait and try again."
-        1
+        FAILURE
       end
 
       def print_unprocessable(error)
         @output.puts "Error: #{error.message}"
         error.errors.each { |message| @output.puts "  - #{message}" }
-        1
+        FAILURE
       end
 
       def print_client_error(error)
         @output.puts "Error: #{error.message}"
-        1
+        FAILURE
       end
 
-      def print_help
-        @output.puts <<~HELP
+      usage do
+        <<~USAGE
           Usage: slidict slides <command> [options]
 
           Commands:
@@ -255,16 +256,10 @@ module Slidict
             edit <id> [options]   Edit an existing draft slide
 
           Create/edit options:
-              --title TEXT         Slide title
-              --body TEXT          Slide body text
-              --file PATH          Read the slide body from a file (instead of --body)
-              --body-format FORMAT asciidoc or markdown (default: auto-detected from body)
-              --visibility VIS     public, unlisted, or group_only (default: public)
-          -h, --help                Show this help
+          #{flags_help(:body_options)}
 
           Note: slides are always created/edited as drafts. Publish from the Web UI.
-        HELP
-        0
+        USAGE
       end
     end
   end

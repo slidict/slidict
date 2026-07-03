@@ -9,9 +9,14 @@ module Slidict
     class Serve
       DEFAULT_PUBLIC_DIR = "public"
 
-      def initialize(public_dir: DEFAULT_PUBLIC_DIR, output: $stdout)
-        @public_dir = File.expand_path(public_dir)
-        @output = output
+      include Options
+
+      options public_dir: -> { DEFAULT_PUBLIC_DIR },
+              output: -> { $stdout }
+
+      def initialize(**)
+        super
+        @public_dir = File.expand_path(@public_dir)
       end
 
       def run(args = [])
@@ -20,7 +25,7 @@ module Slidict
         ARGV.replace(args)
         @output.puts "Serving slides from #{@public_dir}"
         app.run!
-        0
+        SUCCESS
       ensure
         ARGV.replace(original_argv) if original_argv
       end
