@@ -94,6 +94,16 @@ Asciidoctor Reveal.js   -> public/001.adoc, public/002.adoc, ...
 
 ## Commands
 
+### `slidict init`
+
+Creates a `.env` file for `SLIDICT_LLM_*`, `SLIDICT_FRAMEWORK`, and `SLIDICT_METHOD`
+(see [Configuration](#configuration)) and adds `.env` to `.gitignore`. Does nothing to
+an existing `.env` or an already-updated `.gitignore`.
+
+```bash
+bin/slidict init
+```
+
 ### `slidict auth`
 
 Authenticates the CLI with your GitHub account via the device code flow and saves a
@@ -167,13 +177,42 @@ override it with `--format`. Run `bin/slidict lint -h` for the full list of opti
 ## Configuration
 
 Slidict generates slides with an LLM through any OpenAI Compatible API. Configure the
-target endpoint with environment variables or CLI flags (flags take precedence):
+target endpoint with environment variables, a `.env` file, or CLI flags:
 
 | Environment variable    | CLI flag         | Default        |
 | ------------------------ | ---------------- | -------------- |
 | `SLIDICT_LLM_BASE_URL`    | `--llm-base-url` | _(none)_       |
 | `SLIDICT_LLM_API_KEY`     | `--llm-api-key`  | _(none)_       |
 | `SLIDICT_LLM_MODEL`       | `--llm-model`    | `gpt-4o-mini`  |
+| `SLIDICT_FRAMEWORK`       | `--framework`    | `slidev`       |
+| `SLIDICT_METHOD`          | `--method`       | _(none)_       |
+
+Precedence is CLI flag > real environment variable > `.env` file > built-in default (a
+`.env` value fills in only variables that aren't already set in the environment). Run
+`slidict init` to create a `.env` file in the current directory (with these variables
+commented out) and add `.env` to `.gitignore`:
+
+```bash
+bin/slidict init
+```
+
+```text
+Created .env
+Added .env to .gitignore
+```
+
+Then edit `.env` to set the values you want, for example:
+
+```bash
+SLIDICT_LLM_BASE_URL=http://localhost:11434/v1
+SLIDICT_LLM_API_KEY=ollama
+SLIDICT_LLM_MODEL=llama3
+SLIDICT_FRAMEWORK=marp
+```
+
+Since `.env` is gitignored, it's a good place for secrets like API keys that
+shouldn't be committed. A CLI flag always overrides both `.env` and the real
+environment for that invocation.
 
 If no `llm-base-url` is configured, Slidict uses its built-in slide template and never
 calls an LLM. Once a `llm-base-url` is set, Slidict always calls that endpoint; if the

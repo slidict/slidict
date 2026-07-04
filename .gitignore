@@ -13,3 +13,6 @@
 .rspec_status
 
 /public
+
+# local LLM/framework config, created by `slidict init`
+/.env

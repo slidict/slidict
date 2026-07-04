@@ -204,6 +204,64 @@ RSpec.describe Slidict::Cli::App do
       expect(output.string).to include("Review checklist")
     end
 
+    it "creates a .env file and adds it to .gitignore" do
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) do
+          status = cli.run(["init"])
+
+          expect(status).to eq(0)
+          expect(File.read(".env")).to include("SLIDICT_LLM_BASE_URL")
+          expect(File.read(".gitignore")).to include(".env")
+          expect(output.string).to include("Created .env")
+          expect(output.string).to include("Added .env to .gitignore")
+        end
+      end
+    end
+
+    it "leaves an existing .env and .gitignore entry alone" do
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) do
+          File.write(".env", "SLIDICT_LLM_MODEL=llama3\n")
+          File.write(".gitignore", ".env\n")
+
+          status = cli.run(["init"])
+
+          expect(status).to eq(0)
+          expect(File.read(".env")).to eq("SLIDICT_LLM_MODEL=llama3\n")
+          expect(output.string).to include(".env already exists, leaving it unchanged")
+          expect(output.string).not_to include("Added .env to .gitignore")
+        end
+      end
+    end
+
+    it "uses SLIDICT_FRAMEWORK and SLIDICT_METHOD as defaults when the flags are not given" do
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) do
+          with_env("SLIDICT_FRAMEWORK" => "marp", "SLIDICT_METHOD" => "scqa") do
+            cli.run(["--topic", "x", "--duration", "x", "--audience", "x", "--goal", "x"])
+          end
+
+          expect(File.exist?("public/001.adoc")).to be(false)
+          expect(File.exist?("public/001.md")).to be(true)
+        end
+      end
+    end
+
+    it "prefers --framework and --method over the environment variables" do
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) do
+          with_env("SLIDICT_FRAMEWORK" => "marp") do
+            cli.run([
+                      "--topic", "x", "--duration", "x", "--audience", "x", "--goal", "x",
+                      "--framework", "asciidoctor-revealjs"
+                    ])
+          end
+
+          expect(File.exist?("public/001.adoc")).to be(true)
+        end
+      end
+    end
+
     it "prints help and returns 0 when -h is given" do
       status = cli.run(["-h"])
 

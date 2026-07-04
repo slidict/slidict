@@ -13,3 +13,13 @@ RSpec.configure do |config|
     c.syntax = :expect
   end
 end
+
+# Temporarily sets the given ENV vars for the duration of the block, restoring
+# (or removing) the previous values afterwards.
+def with_env(vars)
+  original = vars.each_key.to_h { |key| [key, ENV[key]] }
+  vars.each { |key, value| ENV[key] = value }
+  yield
+ensure
+  original.each { |key, value| value.nil? ? ENV.delete(key) : ENV[key] = value }
+end

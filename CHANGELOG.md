@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+- Add `slidict init` to create a `.env` file (for `SLIDICT_LLM_*`, `SLIDICT_FRAMEWORK`,
+  and `SLIDICT_METHOD`) and add it to `.gitignore`. `.env` is loaded automatically and
+  fills in unset environment variables; CLI flags still take precedence.
+- Add `SLIDICT_FRAMEWORK` and `SLIDICT_METHOD` environment variables as defaults for
+  `--framework` and `--method`.
 - Add `--language` to generate slide titles and bullets in a language other than English,
   and to translate the interactive prompt questions into that language via the LLM.
 

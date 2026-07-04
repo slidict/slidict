@@ -32,8 +32,10 @@ module Slidict
       flag "--duration",     arg: "TEXT",  desc: 'Presentation length, for example "5 minutes"'
       flag "--audience",     arg: "TEXT",  desc: "Target audience"
       flag "--goal",         arg: "TEXT",  desc: "Desired audience takeaway or action"
-      flag "--framework",    arg: "NAME",  desc: -> { "#{Output::Format.names.join(", ")} (default: slidev)" }
-      flag "--method",       arg: "ID",    desc: "Presentation method, for example scqa, prep, or pyramid"
+      flag "--framework",    arg: "NAME",
+                             desc: -> { "#{Output::Format.names.join(", ")} (default: slidev)\n(env: SLIDICT_FRAMEWORK)" }
+      flag "--method",       arg: "ID",    desc: "Presentation method, for example scqa, prep, or pyramid\n" \
+                                                  "(env: SLIDICT_METHOD)"
       flag "--language",     arg: "LANG",  desc: "Generate slide titles and bullets in the given language\n" \
                                                   "(e.g. Japanese); only affects LLM-generated slides"
       flag "--filename",     arg: "NAME",  desc: "File name under public/ (default: next sequential file)"
@@ -66,6 +68,7 @@ module Slidict
         return lint(options[:args]) if options[:command] == "lint"
         return list_methods if options[:command] == "list-methods"
         return show_method(options[:args]) if options[:command] == "show-method"
+        return init if options[:command] == "init"
 
         config = build_config(options)
         return print_available_models(config) if config.llm_enabled? && config.model.nil?
@@ -115,7 +118,7 @@ module Slidict
       private
 
       def parse(argv)
-        options = { framework: "slidev" }
+        options = { framework: ENV["SLIDICT_FRAMEWORK"] || "slidev", method: ENV["SLIDICT_METHOD"] }
         args = argv.dup
 
         args.shift if args.first == "new"
@@ -161,6 +164,14 @@ module Slidict
           args.shift
           options[:command] = "show-method"
           options[:args] = args
+          return options
+        end
+
+        if args.first == "init"
+          args.shift
+          raise ArgumentError, "init does not accept options" unless args.empty?
+
+          options[:command] = "init"
           return options
         end
 
@@ -282,6 +293,46 @@ module Slidict
         id ? method_registry.fetch(id) : nil
       end
 
+      ENV_TEMPLATE = <<~ENV
+        # Slidict configuration. CLI flags always take precedence over these
+        # values; unset ones fall back to the built-in defaults. This file is
+        # ignored by git (see .gitignore) so it's safe to put secrets here.
+
+        # OpenAI Compatible API endpoint (required to enable LLM-generated slides).
+        # SLIDICT_LLM_BASE_URL=https://api.openai.com/v1
+        # SLIDICT_LLM_API_KEY=sk-...
+        # SLIDICT_LLM_MODEL=gpt-4o-mini
+
+        # Default --framework when it is not given on the command line.
+        # SLIDICT_FRAMEWORK=slidev
+
+        # Default --method when it is not given on the command line.
+        # SLIDICT_METHOD=scqa
+      ENV
+
+      def init
+        env_created = write_env_file
+        @output.puts(env_created ? "Created .env" : ".env already exists, leaving it unchanged")
+
+        gitignore_updated = ensure_env_gitignored
+        @output.puts "Added .env to .gitignore" if gitignore_updated
+        SUCCESS
+      end
+
+      def write_env_file
+        return false if File.exist?(".env")
+
+        File.write(".env", ENV_TEMPLATE)
+        true
+      end
+
+      def ensure_env_gitignored
+        return false if File.exist?(".gitignore") && File.readlines(".gitignore", chomp: true).include?(".env")
+
+        File.open(".gitignore", "a") { |f| f.puts(".env") }
+        true
+      end
+
       def method_registry
         @method_registry ||= PresentationMethodRegistry.new
       end
@@ -354,6 +405,7 @@ module Slidict
       usage do
         <<~USAGE
           Usage: slidict [new] [options]
+          Usage: slidict init
           Usage: slidict auth
           Usage: slidict slides <list|show|create|edit> [options]
           Usage: slidict serve [sinatra options]
@@ -364,6 +416,7 @@ module Slidict
           Generate presentation source files from a short conversation.
 
           Commands:
+            init             Create a .env file for SLIDICT_LLM_* etc. and add it to .gitignore
             auth             Authenticate the CLI with GitHub and save a CLI access token
             slides           Manage your slides on slidict.io (run `slidict slides -h` for details)
             serve            Serve slide files from ./public with Sinatra
