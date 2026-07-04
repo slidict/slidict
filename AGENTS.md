@@ -10,7 +10,7 @@ OpenAI-compatible chat API.
 
 ## Setup
 
-- Ruby 3.1+
+- Ruby 3.2.0+
 - Install dependencies: `bundle install`
 
 ## Development workflow

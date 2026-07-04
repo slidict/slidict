@@ -25,7 +25,7 @@ Unlike traditional slide generators, Slidict focuses on communication before sli
 
 ## Requirements
 
-- Ruby 3.1 or later
+- Ruby 3.2.0 or later
 
 ## Usage
 
