@@ -2,12 +2,14 @@
 
 require "time"
 
+require_relative "slidict/cli/options"
 require_relative "slidict/cli/app"
 require_relative "slidict/cli/lint"
 require_relative "slidict/cli/serve"
 require_relative "slidict/cli/slides"
 require_relative "slidict/config"
 require_relative "slidict/deck"
+require_relative "slidict/env"
 require_relative "slidict/external/slidict_io/auth"
 require_relative "slidict/external/slidict_io/client"
 require_relative "slidict/external/slidict_io/credentials"

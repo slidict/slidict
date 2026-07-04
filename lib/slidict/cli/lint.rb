@@ -8,11 +8,21 @@ module Slidict
     class Lint
       ASCIIDOC_EXTENSIONS = %w[.adoc .asciidoc].freeze
 
-      def initialize(output:, linter_factory: nil, renderer: Slidict::Lint::Renderer.new)
-        @output = output
-        @linter_factory = linter_factory || method(:default_linter)
-        @renderer = renderer
-      end
+      include Options
+
+      options output: Options::MISSING,
+              linter_factory: -> { method(:default_linter) },
+              renderer: -> { Slidict::Lint::Renderer.new }
+
+      flag "--format",       arg: "FORMAT", desc: "markdown or asciidoc (default: auto-detected from extension)"
+      flag "--llm-base-url", arg: "URL",    desc: "OpenAI Compatible API base URL (env: SLIDICT_LLM_BASE_URL)"
+      flag "--llm-api-key",  arg: "KEY",    desc: "API key for the LLM endpoint (env: SLIDICT_LLM_API_KEY)"
+      # rubocop:disable Layout/HashAlignment -- source-only line wrap, desc stays a single displayed line
+      flag "--llm-model", arg: "NAME",
+           desc: "Model name to request (env: SLIDICT_LLM_MODEL); omit to list available models"
+      # rubocop:enable Layout/HashAlignment
+      flag "--translate",    arg: "LANG",   desc: "Translate findings into the given language (e.g. Japanese)"
+      flag "-h", "--help",                  desc: "Show this help"
 
       def run(argv)
         options = parse(argv)
@@ -44,37 +54,23 @@ module Slidict
         print_error(error)
         @output.puts
         print_help
-        1
+        FAILURE
       end
 
       def print_error(error)
         @output.puts "Error: #{error.message}"
-        1
+        FAILURE
       end
 
       def parse(argv)
         args = argv.dup
         options = { path: extract_path!(args) }
-        parse_options!(args, options)
+        parse_flags!(args, options)
         options
       end
 
       def extract_path!(args)
         args.shift unless args.first.to_s.start_with?("-")
-      end
-
-      def parse_options!(args, options)
-        until args.empty?
-          case (arg = args.shift)
-          when "-h", "--help" then options[:help] = true
-          when "--format" then options[:format] = fetch_value!(args, arg)
-          when "--llm-base-url" then options[:llm_base_url] = fetch_value!(args, arg)
-          when "--llm-api-key" then options[:llm_api_key] = fetch_value!(args, arg)
-          when "--llm-model" then options[:llm_model] = fetch_value!(args, arg)
-          when "--translate" then options[:translate] = fetch_value!(args, arg)
-          else raise ArgumentError, "unknown option #{arg}"
-          end
-        end
       end
 
       def fetch_value!(args, option)
@@ -105,12 +101,12 @@ module Slidict
 
       def print_findings(findings)
         @output.puts(findings.empty? ? "No issues found." : @renderer.render(findings))
-        0
+        SUCCESS
       end
 
       def file_not_found(path)
         @output.puts "Error: file not found: #{path}"
-        1
+        FAILURE
       end
 
       def print_available_models(config)
@@ -122,28 +118,22 @@ module Slidict
           @output.puts "Available models (specify one with --llm-model NAME or SLIDICT_LLM_MODEL=NAME):"
           models.each { |m| @output.puts "  #{m}" }
         end
-        0
+        SUCCESS
       rescue Llm::Client::Error => e
         print_error(e)
       end
 
       def llm_required
         @output.puts "Error: lint requires an LLM endpoint (--llm-base-url or SLIDICT_LLM_BASE_URL)"
-        1
+        FAILURE
       end
 
-      def print_help
-        @output.puts <<~HELP
+      usage do
+        <<~USAGE
           Usage: slidict lint <file> [options]
           Diagnoses whether a slide deck's structure will land with its audience.
-              --format FORMAT     markdown or asciidoc (default: auto-detected from extension)
-              --llm-base-url URL  OpenAI Compatible API base URL (env: SLIDICT_LLM_BASE_URL)
-              --llm-api-key KEY   API key for the LLM endpoint (env: SLIDICT_LLM_API_KEY)
-              --llm-model NAME    Model name to request (env: SLIDICT_LLM_MODEL); omit to list available models
-              --translate LANG    Translate findings into the given language (e.g. Japanese)
-          -h, --help               Show this help
-        HELP
-        0
+          #{flags_help}
+        USAGE
       end
     end
   end

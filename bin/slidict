@@ -3,4 +3,6 @@
 
 require_relative "../lib/slidict"
 
+Slidict::Env.load!
+
 exit Slidict::Cli::App.new.run(ARGV)

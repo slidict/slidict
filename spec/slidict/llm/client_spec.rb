@@ -91,7 +91,7 @@ RSpec.describe Slidict::Llm::Client do
     end
 
     it "extracts the JSON array even when the model wraps it in reasoning text" do
-      json = [{ "title" => "Observability", "bullets" => ["a", "b"] }].to_json
+      json = [{ "title" => "Observability", "bullets" => %w[a b] }].to_json
       content = "<|channel|>thought<|message|>let me think...<|end|>#{json}\nDone."
       stub_http_response({ "choices" => [{ "message" => { "content" => content } }] }.to_json)
 
@@ -104,6 +104,34 @@ RSpec.describe Slidict::Llm::Client do
       allow(Net::HTTP).to receive(:start).and_raise(SocketError, "connection refused")
 
       expect { client.generate_slides(deck) }.to raise_error(Slidict::Llm::Client::Error, /connection refused/)
+    end
+
+    it "includes the language instruction in the prompt when language: is given" do
+      content = [{ "title" => "Observability", "bullets" => %w[a b] }].to_json
+      http = instance_double(Net::HTTP)
+      response = Net::HTTPOK.new("1.1", "200", "OK")
+      allow(response).to receive(:body).and_return({ "choices" => [{ "message" => { "content" => content } }] }.to_json)
+      request_body = nil
+      allow(http).to receive(:request) { |req| request_body = req.body; response }
+      allow(Net::HTTP).to receive(:start).and_yield(http)
+
+      client.generate_slides(deck, language: "Japanese")
+
+      expect(JSON.parse(request_body)["messages"].first["content"]).to include("Japanese")
+    end
+
+    it "does not add a language instruction when language: is nil" do
+      content = [{ "title" => "Observability", "bullets" => %w[a b] }].to_json
+      http = instance_double(Net::HTTP)
+      response = Net::HTTPOK.new("1.1", "200", "OK")
+      allow(response).to receive(:body).and_return({ "choices" => [{ "message" => { "content" => content } }] }.to_json)
+      request_body = nil
+      allow(http).to receive(:request) { |req| request_body = req.body; response }
+      allow(Net::HTTP).to receive(:start).and_yield(http)
+
+      client.generate_slides(deck)
+
+      expect(JSON.parse(request_body)["messages"].first["content"]).not_to include("Write the \"title\"")
     end
   end
 
@@ -176,6 +204,44 @@ RSpec.describe Slidict::Llm::Client do
       client.lint_slides(["# Title"])
 
       expect(JSON.parse(request_body)["messages"].first["content"]).not_to include("Write each message field in")
+    end
+  end
+
+  describe "#translate_text" do
+    it "returns the model's translation" do
+      stub_http_response({ "choices" => [{ "message" => { "content" => "トピックは何ですか?" } }] }.to_json)
+
+      expect(client.translate_text("What is the topic?", "Japanese")).to eq("トピックは何ですか?")
+    end
+
+    it "sends the requested language and source text in the prompt" do
+      http = instance_double(Net::HTTP)
+      response = Net::HTTPOK.new("1.1", "200", "OK")
+      allow(response).to receive(:body).and_return({ "choices" => [{ "message" => { "content" => "translated" } }] }.to_json)
+      request_body = nil
+      allow(http).to receive(:request) { |req| request_body = req.body; response }
+      allow(Net::HTTP).to receive(:start).and_yield(http)
+
+      client.translate_text("What is the topic?", "Japanese")
+
+      prompt = JSON.parse(request_body)["messages"].first["content"]
+      expect(prompt).to include("Japanese")
+      expect(prompt).to include("What is the topic?")
+    end
+
+    it "strips quotation marks the model wraps the translation in" do
+      stub_http_response({ "choices" => [{ "message" => { "content" => %("トピックは何ですか?") } }] }.to_json)
+
+      expect(client.translate_text("What is the topic?", "Japanese")).to eq("トピックは何ですか?")
+    end
+
+    it "raises an Error when the HTTP response is not successful" do
+      response = Net::HTTPBadRequest.new("1.1", "400", "Bad Request")
+      allow(response).to receive(:body).and_return("")
+      http = instance_double(Net::HTTP, request: response)
+      allow(Net::HTTP).to receive(:start).and_yield(http)
+
+      expect { client.translate_text("a", "Japanese") }.to raise_error(Slidict::Llm::Client::Error, /400/)
     end
   end
 end
