@@ -32,6 +32,8 @@ module Slidict
       flag "--duration",     arg: "TEXT",  desc: 'Presentation length, for example "5 minutes"'
       flag "--audience",     arg: "TEXT",  desc: "Target audience"
       flag "--goal",         arg: "TEXT",  desc: "Desired audience takeaway or action"
+      flag "--text",         arg: "TEXT",  desc: "Source text to turn into slides"
+      flag "--text-file",    arg: "PATH",  desc: "Read source text from a file"
       flag "--framework",    arg: "NAME",
                              desc: -> { "#{Output::Format.names.join(", ")} (default: slidev)\n(env: SLIDICT_FRAMEWORK)" }
       flag "--method",       arg: "ID",    desc: "Presentation method, for example scqa, prep, or pyramid\n" \
@@ -73,17 +75,23 @@ module Slidict
         config = build_config(options)
         return print_available_models(config) if config.llm_enabled? && config.model.nil?
 
+        # Validate and read local input before making a network request. This
+        # keeps missing/empty source-file errors fast and deterministic.
+        options[:text] = read_source_text(options)
         client = llm_client_for(config)
         return FAILURE if client && !verify_connection(client)
 
+        raise ArgumentError, "--text and --text-file require an LLM endpoint" if options[:text] && !client
+
         questions = questions_for(client, options)
         deck = Deck.new(
-          topic: ask(questions[:topic], options[:topic]),
-          duration: ask(questions[:duration], options[:duration]),
-          audience: ask(questions[:audience], options[:audience]),
-          goal: ask(questions[:goal], options[:goal]),
+          topic: source_topic(options) || ask(questions[:topic], options[:topic]),
+          duration: options[:text] ? options[:duration] : ask(questions[:duration], options[:duration]),
+          audience: options[:text] ? options[:audience] : ask(questions[:audience], options[:audience]),
+          goal: options[:text] ? options[:goal] : ask(questions[:goal], options[:goal]),
           framework: options[:framework],
-          presentation_method: options[:presentation_method]
+          presentation_method: options[:presentation_method],
+          source: options[:text]
         )
 
         if client
@@ -95,7 +103,8 @@ module Slidict
           end
           deck = Deck.new(
             topic: deck.topic, duration: deck.duration, audience: deck.audience, goal: deck.goal,
-            framework: deck.framework, slides: slides, presentation_method: deck.presentation_method
+            framework: deck.framework, slides: slides, presentation_method: deck.presentation_method,
+            source: deck.source
           )
         end
 
@@ -116,6 +125,28 @@ module Slidict
       end
 
       private
+
+      def read_source_text(options)
+        raise ArgumentError, "specify only one of --text or --text-file" if options[:text] && options[:text_file]
+        unless options[:text_file]
+          raise ArgumentError, "source text must not be empty" if options.key?(:text) && options[:text].to_s.strip.empty?
+
+          return options[:text]
+        end
+
+        File.read(options[:text_file]).tap do |text|
+          raise ArgumentError, "source text must not be empty" if text.strip.empty?
+        end
+      rescue Errno::ENOENT, Errno::EACCES => e
+        raise ArgumentError, "could not read #{options[:text_file]}: #{e.message}"
+      end
+
+      def source_topic(options)
+        return options[:topic] unless options[:topic].to_s.strip.empty?
+        return unless options[:text]
+
+        options[:text].each_line.map(&:strip).find { |line| !line.empty? }&.sub(/\A#+\s*/, "")
+      end
 
       def parse(argv)
         options = { framework: ENV["SLIDICT_FRAMEWORK"] || "slidev", method: ENV["SLIDICT_METHOD"] }
@@ -370,7 +401,10 @@ module Slidict
 
       def fetch_value!(args, option)
         value = args.shift
-        raise ArgumentError, "#{option} requires a value" if value.nil? || value.start_with?("-")
+        # Source prose can legitimately start with Markdown frontmatter or a
+        # list item. Other options retain the typo-friendly flag check.
+        missing = value.nil? || (value.start_with?("-") && option != "--text")
+        raise ArgumentError, "#{option} requires a value" if missing
 
         value
       end
@@ -389,6 +423,7 @@ module Slidict
       # left to ask, or a translation call fails -- this is a nicety, not
       # something worth aborting slide generation over.
       def questions_for(client, options)
+        return QUESTIONS if options[:text]
         return QUESTIONS unless client && options[:language]
 
         missing = QUESTIONS.select { |key, _| options[key].to_s.strip.empty? }

@@ -20,6 +20,7 @@ require_relative "slidict/lint/slide_parser"
 require_relative "slidict/llm/client"
 require_relative "slidict/output/format"
 require_relative "slidict/output/renderer"
+require_relative "slidict/generator"
 require_relative "slidict/presentation_method"
 require_relative "slidict/version"
 

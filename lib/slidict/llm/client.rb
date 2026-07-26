@@ -75,6 +75,7 @@ module Slidict
           Audience: #{deck.audience}
           Goal: #{deck.goal}
           #{method_prompt_for(deck)}
+          #{source_prompt_for(deck)}
 
           Return one slide for each required slide role when a presentation method is
           provided; otherwise return exactly 5 slides. Each item must be an object with
@@ -82,6 +83,19 @@ module Slidict
           #{language_instruction_for(language)}Respond with the JSON array only: no commentary, no markdown code
           fences, and no reasoning or thinking content before or after it.
         PROMPT
+      end
+
+      def source_prompt_for(deck)
+        return "" if deck.source.empty?
+
+        <<~SOURCE
+          Source text:
+          <source>
+          #{deck.source}
+          </source>
+          Base the presentation on the source text. Identify its central message,
+          preserve important facts and examples, and do not invent unsupported claims.
+        SOURCE
       end
 
       def language_instruction_for(language)

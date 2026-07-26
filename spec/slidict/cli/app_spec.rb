@@ -316,6 +316,53 @@ RSpec.describe Slidict::Cli::App do
       end
     end
 
+    it "generates slides from a source text file without interactive questions" do
+      generated = [Slidict::Slide.new(title: "Article summary", bullets: ["Grounded fact"])]
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:generate_slides).and_return(generated)
+
+      Dir.mktmpdir do |dir|
+        source = File.join(dir, "article.md")
+        path = File.join(dir, "slides.md")
+        File.write(source, "# Accessibility testing\nAutomation catches regressions.")
+
+        status = cli.run([
+                           "--text-file", source, "--llm-base-url", "http://localhost:11434/v1",
+                           "--llm-api-key", "ollama", "--llm-model", "llama3", "--output", path
+                         ])
+
+        expect(status).to eq(0)
+        expect(File.read(path)).to include("# Article summary")
+        expect(output.string).not_to include("What would you like to talk about?")
+      end
+    end
+
+    it "requires an LLM endpoint for source text generation" do
+      status = cli.run(["--text", "An article", "--output", "/tmp/slides.md"])
+
+      expect(status).to eq(1)
+      expect(output.string).to include("--text and --text-file require an LLM endpoint")
+    end
+
+    it "accepts source text that starts with Markdown frontmatter" do
+      generated = [Slidict::Slide.new(title: "Summary", bullets: ["Fact"])]
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:generate_slides) do |_, deck|
+        expect(deck.source).to start_with("---")
+        generated
+      end
+
+      Dir.mktmpdir do |dir|
+        status = cli.run([
+                           "--text", "---\ntitle: Proposal\n---\nBody",
+                           "--llm-base-url", "http://localhost:11434/v1", "--llm-api-key", "ollama",
+                           "--llm-model", "llama3", "--output", File.join(dir, "slides.md")
+                         ])
+
+        expect(status).to eq(0)
+      end
+    end
+
     it "passes --language through to the LLM client's generate_slides call" do
       generated = [Slidict::Slide.new(title: "Generated title", bullets: %w[a b])]
       allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)

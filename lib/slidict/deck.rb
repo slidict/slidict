@@ -4,15 +4,17 @@ module Slidict
   Slide = Struct.new(:title, :bullets, keyword_init: true)
 
   class Deck
-    attr_reader :topic, :duration, :audience, :goal, :framework, :presentation_method
+    attr_reader :topic, :duration, :audience, :goal, :framework, :presentation_method, :source
 
-    def initialize(topic:, duration:, audience:, goal:, framework: "slidev", slides: nil, presentation_method: nil)
+    def initialize(topic:, duration:, audience:, goal:, framework: "slidev", slides: nil, presentation_method: nil,
+                   source: nil)
       @topic = normalize(topic, fallback: "Untitled presentation")
       @duration = normalize(duration, fallback: "5 minutes")
       @audience = normalize(audience, fallback: "general audience")
       @goal = normalize(goal, fallback: "understand the key message")
       @framework = normalize(framework, fallback: "slidev").downcase
       @presentation_method = presentation_method
+      @source = source.to_s.strip
       @slides = slides
     end
 

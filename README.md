@@ -63,6 +63,34 @@ bin/slidict \
   --output slides.adoc
 ```
 
+To create a presentation from an existing article, memo, or other prose, pass the
+text directly or read it from a file. Source-text generation requires an LLM endpoint;
+the first non-empty line is used as the topic when `--topic` is omitted. Slidict asks
+the model to preserve the source's facts and examples instead of inventing claims.
+
+```bash
+bin/slidict --text-file proposal.md \
+  --llm-base-url https://api.openai.com/v1 \
+  --llm-api-key "$OPENAI_API_KEY" --llm-model gpt-4o-mini
+
+bin/slidict --text "Why our team should adopt automated accessibility testing ..." \
+  --llm-base-url http://localhost:11434/v1 --llm-api-key ollama --llm-model llama3
+```
+
+Applications can use the same pipeline without CLI or filesystem side effects. The
+result contains both the structured `deck` and rendered presentation `content`:
+
+```ruby
+client = Slidict::Llm::Client.new(base_url: url, api_key: key, model: model)
+result = Slidict::Generator.new(client: client).generate(
+  text: article,
+  framework: "slidev",
+  language: "Japanese"
+)
+result.deck    # => Slidict::Deck
+result.content # => Slidev source
+```
+
 Add `--publish` to also save the generated slides to slidict.io as a draft (requires
 `slidict auth` first). Pass `--slide-id` to edit an existing draft instead of creating a
 new one:
