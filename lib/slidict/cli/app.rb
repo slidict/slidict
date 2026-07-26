@@ -75,10 +75,12 @@ module Slidict
         config = build_config(options)
         return print_available_models(config) if config.llm_enabled? && config.model.nil?
 
+        # Validate and read local input before making a network request. This
+        # keeps missing/empty source-file errors fast and deterministic.
+        options[:text] = read_source_text(options)
         client = llm_client_for(config)
         return FAILURE if client && !verify_connection(client)
 
-        options[:text] = read_source_text(options)
         raise ArgumentError, "--text and --text-file require an LLM endpoint" if options[:text] && !client
 
         questions = questions_for(client, options)
@@ -399,7 +401,10 @@ module Slidict
 
       def fetch_value!(args, option)
         value = args.shift
-        raise ArgumentError, "#{option} requires a value" if value.nil? || value.start_with?("-")
+        # Source prose can legitimately start with Markdown frontmatter or a
+        # list item. Other options retain the typo-friendly flag check.
+        missing = value.nil? || (value.start_with?("-") && option != "--text")
+        raise ArgumentError, "#{option} requires a value" if missing
 
         value
       end

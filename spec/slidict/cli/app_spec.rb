@@ -344,6 +344,25 @@ RSpec.describe Slidict::Cli::App do
       expect(output.string).to include("--text and --text-file require an LLM endpoint")
     end
 
+    it "accepts source text that starts with Markdown frontmatter" do
+      generated = [Slidict::Slide.new(title: "Summary", bullets: ["Fact"])]
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)
+      allow_any_instance_of(Slidict::Llm::Client).to receive(:generate_slides) do |_, deck|
+        expect(deck.source).to start_with("---")
+        generated
+      end
+
+      Dir.mktmpdir do |dir|
+        status = cli.run([
+                           "--text", "---\ntitle: Proposal\n---\nBody",
+                           "--llm-base-url", "http://localhost:11434/v1", "--llm-api-key", "ollama",
+                           "--llm-model", "llama3", "--output", File.join(dir, "slides.md")
+                         ])
+
+        expect(status).to eq(0)
+      end
+    end
+
     it "passes --language through to the LLM client's generate_slides call" do
       generated = [Slidict::Slide.new(title: "Generated title", bullets: %w[a b])]
       allow_any_instance_of(Slidict::Llm::Client).to receive(:verify_connection!)
