@@ -8,9 +8,13 @@ permissions:
   contents: read
 
 jobs:
-  version-check:
-    name: Require version update
+  ruby:
+    name: Ruby tests
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        ruby-version: ["3.2", "3.3", "3.4", "4.0"]
 
     steps:
       - name: Check out repository
@@ -37,20 +41,6 @@ jobs:
 
           echo "::error::Update lib/slidict/version.rb or check the version update exemption in the pull request description."
           exit 1
-
-  ruby:
-    name: Ruby tests
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        ruby-version: ["3.2", "3.3", "3.4", "4.0"]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@9eb537ca036ebaed86729dcb9309076e4c5c3b74 # v1.314.0
