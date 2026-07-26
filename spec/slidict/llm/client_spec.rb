@@ -133,6 +133,26 @@ RSpec.describe Slidict::Llm::Client do
 
       expect(JSON.parse(request_body)["messages"].first["content"]).not_to include("Write the \"title\"")
     end
+
+    it "grounds generation in the deck source text" do
+      sourced_deck = Slidict::Deck.new(
+        topic: "Proposal", duration: nil, audience: nil, goal: nil,
+        source: "Revenue increased by 20 percent."
+      )
+      content = [{ "title" => "Proposal", "bullets" => ["Revenue grew"] }].to_json
+      http = instance_double(Net::HTTP)
+      response = Net::HTTPOK.new("1.1", "200", "OK")
+      allow(response).to receive(:body).and_return({ "choices" => [{ "message" => { "content" => content } }] }.to_json)
+      request_body = nil
+      allow(http).to receive(:request) { |req| request_body = req.body; response }
+      allow(Net::HTTP).to receive(:start).and_yield(http)
+
+      client.generate_slides(sourced_deck)
+
+      prompt = JSON.parse(request_body)["messages"].first["content"]
+      expect(prompt).to include("Revenue increased by 20 percent.")
+      expect(prompt).to include("do not invent unsupported claims")
+    end
   end
 
   describe "#lint_slides" do
