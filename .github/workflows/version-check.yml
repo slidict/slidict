@@ -1,0 +1,70 @@
+name: Version Check
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  version-file:
+    name: Require version.rb update
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Require version.rb update or an explicit skip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_ACTOR: ${{ github.event.pull_request.user.login }}
+          VERSION_FILE: lib/slidict/version.rb
+        run: |
+          set -euo pipefail
+
+          # Dependency update PRs are opened by bots that cannot fill in the
+          # pull request template, so they are exempt from this check.
+          case "$PR_ACTOR" in
+            'dependabot[bot]' | 'github-actions[bot]')
+              echo "::notice::Skipping version check for bot author '${PR_ACTOR}'."
+              exit 0
+              ;;
+          esac
+
+          # The pull request template ships a checkbox carrying the
+          # `skip-version-check` marker, unchecked by default.
+          if printf '%s\n' "${PR_BODY:-}" |
+            grep -qiE '^[[:space:]]*[-*+][[:space:]]+\[[[:space:]]*x[[:space:]]*\].*skip-version-check'; then
+            echo "::notice::'${VERSION_FILE}' is not required: the skip-version-check box is checked."
+            exit 0
+          fi
+
+          changed_files="$(gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files" --jq '.[].filename')"
+
+          if printf '%s\n' "$changed_files" | grep -qxF "$VERSION_FILE"; then
+            echo "::notice::'${VERSION_FILE}' is updated in this pull request."
+            exit 0
+          fi
+
+          echo "::error::'${VERSION_FILE}' is not updated in this pull request."
+          {
+            echo "### Version check failed"
+            echo
+            echo "This pull request does not update \`${VERSION_FILE}\`."
+            echo
+            echo "Do one of the following:"
+            echo
+            echo "- Bump \`VERSION\` in \`${VERSION_FILE}\` following [SemVer](https://semver.org/) (see \`AGENTS.md\`), or"
+            echo "- Check the \"This PR does not require a version bump\" box in the pull request description."
+            echo
+            echo "Editing the description re-runs this check automatically."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
