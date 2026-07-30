@@ -1,0 +1,35 @@
+id: aidma
+name: AIDMA
+category: marketing
+description: Attention, Interest, Desire, Memory, Action structure for guiding an audience from awareness to action.
+locale: en
+suitable_for:
+  - Marketing presentations
+  - Product and service pitches
+  - Campaign or launch proposals
+slides:
+  - title: Attention
+    role: Capture attention with an audience-relevant hook.
+    instructions: Open with a striking fact, question, or situation connected to the audience's needs.
+  - title: Interest
+    role: Build interest by showing why the subject is relevant.
+    instructions: Connect the offer or idea to a recognizable problem, opportunity, or aspiration.
+  - title: Desire
+    role: Turn interest into a preference for the proposed solution.
+    instructions: Show concrete benefits and help the audience imagine the improved outcome.
+  - title: Memory
+    role: Make the key message easy to recall.
+    instructions: Reinforce one distinctive promise with memorable evidence, phrasing, or imagery.
+  - title: Action
+    role: Prompt the audience to take a clear next step.
+    instructions: State one specific action, remove ambiguity, and explain what happens next.
+ai_instructions:
+  - Move through the AIDMA stages in order without asking for action too early.
+  - Frame benefits from the audience's point of view.
+  - Keep the memorable promise consistent with the evidence and call to action.
+review_checklist:
+  - Does the opening earn the target audience's attention?
+  - Does interest develop into a concrete desire?
+  - Is the central promise distinctive and memorable?
+  - Is the requested action specific and easy to understand?
+references: []

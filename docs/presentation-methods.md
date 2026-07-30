@@ -10,11 +10,13 @@ gem only loads, validates, and applies that data.
 bin/slidict new --method prep --topic "New onboarding flow"
 bin/slidict --method scqa --topic "Database migration plan"
 bin/slidict --method pyramid --topic "FY roadmap recommendation"
+bin/slidict --method fabe --topic "Customer analytics platform"
 bin/slidict list-methods
 bin/slidict show-method scqa
 ```
 
-Built-in methods currently include SCQA, PREP, and Pyramid Principle.
+Built-in methods currently include SDS, PREP, DESC, AIDMA, TAPS, FABE, SCQA,
+and Pyramid Principle.
 
 ## Architecture
 
@@ -32,9 +34,14 @@ This keeps contribution review small: a new built-in method is usually one YAML 
 
 ```text
 data/slidict/methods/
+  aidma.yml
+  desc.yml
+  fabe.yml
   prep.yml
   pyramid.yml
   scqa.yml
+  sds.yml
+  taps.yml
 lib/slidict/presentation_method.rb
 ```
 

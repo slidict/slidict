@@ -1,0 +1,32 @@
+id: desc
+name: DESC
+category: assertive-communication
+description: Describe, Express, Specify, Consequences structure for proposing a constructive change or resolving conflict.
+locale: en
+suitable_for:
+  - Feedback and difficult conversations
+  - Conflict resolution
+  - Requests for behavioral or process change
+slides:
+  - title: Describe
+    role: Describe the situation or behavior objectively.
+    instructions: State observable facts without blame, assumptions, or judgment.
+  - title: Express
+    role: Explain the impact and the speaker's perspective or feelings.
+    instructions: Use specific first-person language to show why the situation matters.
+  - title: Specify
+    role: Request a concrete and achievable change.
+    instructions: Define the desired behavior, owner, and timing so the request is actionable.
+  - title: Consequences
+    role: Clarify the positive outcomes of the change and the implications of inaction.
+    instructions: Emphasize realistic benefits and consequences rather than threats.
+ai_instructions:
+  - Separate observable facts from interpretations and emotions.
+  - Keep the tone respectful, direct, and solution-oriented.
+  - Make the requested change specific enough to act on.
+review_checklist:
+  - Is the description factual and nonjudgmental?
+  - Is the impact expressed clearly from the speaker's perspective?
+  - Is the requested change concrete and achievable?
+  - Are the consequences realistic and constructive?
+references: []

@@ -1,0 +1,28 @@
+id: sds
+name: SDS
+category: concise-communication
+description: Summary, Details, Summary structure for communicating a message clearly and memorably.
+locale: en
+suitable_for:
+  - Short presentations and status updates
+  - Explanations that need a clear takeaway
+  - Messages for time-constrained audiences
+slides:
+  - title: Summary
+    role: State the central message or conclusion at the outset.
+    instructions: Give the audience a concise overview of what they should understand or remember.
+  - title: Details
+    role: Support the opening summary with the essential facts, reasoning, or examples.
+    instructions: Present only the details needed to substantiate the central message, in a logical order.
+  - title: Summary Revisited
+    role: Reinforce the central message after the supporting detail.
+    instructions: Restate the takeaway in fresh, concise language and connect it to the desired response.
+ai_instructions:
+  - Preserve the Summary, Details, Summary sequence.
+  - Keep the opening and closing summaries consistent while avoiding word-for-word repetition.
+  - Include only details that directly support the central message.
+review_checklist:
+  - Is the central message clear in the opening summary?
+  - Do all details support that message?
+  - Does the closing summary reinforce the intended takeaway?
+references: []
