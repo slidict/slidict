@@ -1,0 +1,32 @@
+id: taps
+name: TAPS
+category: problem-solving
+description: To Be, As Is, Problem, Solution structure for defining a desired state and the change needed to reach it.
+locale: en
+suitable_for:
+  - Improvement proposals
+  - Transformation roadmaps
+  - Problem-solving presentations
+slides:
+  - title: To Be
+    role: Define the desired future state and its success criteria.
+    instructions: Describe a concrete, audience-relevant outcome rather than a vague aspiration.
+  - title: As Is
+    role: Establish the current state with objective evidence.
+    instructions: Show the present performance or behavior using facts that can be compared with the desired state.
+  - title: Problem
+    role: Identify the gap and the factors preventing progress.
+    instructions: Explain the most important root cause or barrier, not merely its symptoms.
+  - title: Solution
+    role: Present the actions that will close the gap.
+    instructions: Connect each proposed action to the identified problem and specify the immediate next step.
+ai_instructions:
+  - Make the gap between To Be and As Is explicit and measurable where possible.
+  - Distinguish root causes from symptoms.
+  - Ensure the solution directly addresses the stated problem.
+review_checklist:
+  - Is the desired state concrete and relevant?
+  - Is the current state supported by evidence?
+  - Does the problem explain the gap between the two states?
+  - Does the solution address the root cause and define a next step?
+references: []

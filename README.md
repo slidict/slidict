@@ -299,10 +299,12 @@ We optimize for communication, not decoration.
 
 ## Presentation methods
 
-Use `--method` to generate slides with a specific narrative structure, such as SCQA, PREP, or Pyramid Principle.
+Use `--method` to generate slides with a specific narrative structure. Built-in methods include SDS, PREP, DESC,
+AIDMA, TAPS, FABE, SCQA, and Pyramid Principle.
 
 ```bash
 bin/slidict --method scqa --topic "Database migration plan"
+bin/slidict --method aidma --topic "Product launch"
 bin/slidict list-methods
 bin/slidict show-method scqa
 ```

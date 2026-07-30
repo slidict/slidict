@@ -4,8 +4,10 @@ RSpec.describe Slidict::PresentationMethodRegistry do
   it "loads built-in presentation methods" do
     methods = described_class.new(include_plugins: false).all
 
-    expect(methods.map(&:id)).to include("scqa", "prep", "pyramid")
+    expect(methods.map(&:id)).to include("aidma", "desc", "fabe", "prep", "pyramid", "scqa", "sds", "taps")
     expect(methods.find { |method| method.id == "scqa" }.slides.first.title).to eq("Situation")
+    expect(methods.find { |method| method.id == "sds" }.slides.map(&:title))
+      .to eq(["Summary", "Details", "Summary Revisited"])
   end
 
   it "raises a useful error for unknown methods" do

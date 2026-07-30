@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-30
+
+- Add built-in SDS, DESC, AIDMA, TAPS, and FABE presentation methods.
 - Add source-text slide generation through `--text`, `--text-file`, and the reusable
   `Slidict::Generator` integration API.
 - Add `slidict init` to create a `.env` file (for `SLIDICT_LLM_*`, `SLIDICT_FRAMEWORK`,

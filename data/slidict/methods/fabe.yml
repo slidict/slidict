@@ -1,0 +1,32 @@
+id: fabe
+name: FABE
+category: sales
+description: Features, Advantages, Benefits, Evidence structure for connecting an offering's capabilities to credible customer value.
+locale: en
+suitable_for:
+  - Sales presentations
+  - Product demonstrations
+  - Solution comparisons
+slides:
+  - title: Features
+    role: Introduce the relevant capabilities or attributes of the offering.
+    instructions: Select only features connected to the audience's needs and describe them precisely.
+  - title: Advantages
+    role: Explain how those features perform better or differently.
+    instructions: Compare the capabilities with the current approach or alternatives without unsupported claims.
+  - title: Benefits
+    role: Translate the advantages into outcomes the audience values.
+    instructions: State tangible functional or emotional value in the audience's terms.
+  - title: Evidence
+    role: Prove the promised benefits with credible support.
+    instructions: Use relevant data, demonstrations, testimonials, or case results and identify their context.
+ai_instructions:
+  - Maintain a clear chain from each feature to its advantage, benefit, and evidence.
+  - Prioritize audience value over a long inventory of specifications.
+  - Avoid claims that the evidence does not substantiate.
+review_checklist:
+  - Are the selected features relevant to the audience's needs?
+  - Are advantages differentiated clearly and fairly?
+  - Are benefits expressed as audience outcomes?
+  - Is every important claim supported by credible evidence?
+references: []
