@@ -6,6 +6,10 @@ Slidict is a CLI tool that helps you turn rough ideas into presentations through
 
 Unlike traditional slide generators, Slidict focuses on communication before slide creation.
 
+The project website is available at [slidict.com](https://slidict.com). It is deployed
+from the static files in `site/` by the `Deploy website` GitHub Actions workflow whenever
+those files change on `main`. The workflow can also be run manually from the Actions tab.
+
 ## Demo
 
 ![Slidict conversation-to-slides demo](docs/demo.gif)

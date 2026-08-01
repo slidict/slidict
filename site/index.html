@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Slidictは、対話からプレゼンテーションのソースファイルを生成するオープンソースCLIです。">
+    <meta name="theme-color" content="#13111c">
+    <title>Slidict — 対話から、伝わるスライドへ。</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href="/" aria-label="Slidict ホーム">slidict<span>.</span></a>
+      <a class="github" href="https://github.com/slidict/slidict-cli">GitHub <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">OPEN SOURCE PRESENTATION CLI</p>
+        <h1>対話から、<br><em>伝わるスライド</em>へ。</h1>
+        <p class="lead">粗いアイデアを質問で磨き、Slidev・Marp・Asciidoctor Reveal.js向けのプレゼンテーションに変換します。</p>
+        <div class="actions">
+          <a class="primary" href="https://github.com/slidict/slidict-cli#usage">使いはじめる</a>
+          <a class="secondary" href="https://github.com/slidict/slidict-cli">ソースを見る <span aria-hidden="true">→</span></a>
+        </div>
+      </section>
+
+      <section class="terminal" aria-label="Slidictの使用例">
+        <div class="terminal-bar"><i></i><i></i><i></i><span>terminal</span></div>
+        <pre><span class="muted">$</span> bin/slidict --framework marp
+
+<span class="prompt">What would you like to talk about?</span>
+<span class="answer">› PDF Difference Monitoring Service</span>
+<span class="prompt">Who is the audience?</span>
+<span class="answer">› Engineering managers</span>
+
+<span class="success">✓ Created public/001.md</span></pre>
+      </section>
+
+      <section class="features" aria-label="特徴">
+        <article><b>01</b><h2>話して整理する</h2><p>シンプルな質問に答えるだけ。伝える相手とゴールを先に明確にします。</p></article>
+        <article><b>02</b><h2>好きなAIを使う</h2><p>OpenAI互換APIに対応。OpenAI、Ollama、LM Studioなどを選べます。</p></article>
+        <article><b>03</b><h2>標準形式で仕上げる</h2><p>生成物はMarkdownまたはAsciidoc。いつものツールで自由に編集できます。</p></article>
+      </section>
+    </main>
+
+    <footer><span>Slidict</span><span>Ideas deserve a clear story.</span></footer>
+  </body>
+</html>
